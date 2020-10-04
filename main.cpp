@@ -9,15 +9,34 @@ static int     BCX_cyBaseUnit;
 static int     BCX_ScaleX;
 static int     BCX_ScaleY;
 static HANDLE  Form1;
-double  MIN (long,long);
-double  MAX (long,long);
+double  MIN (double,double);
+double  MAX (double,double);
 int     WINAPI WinMain (HINSTANCE, HINSTANCE, LPSTR, int);
 void    FormLoad (HANDLE);
 LRESULT CALLBACK WndProc (HWND, UINT, WPARAM, LPARAM);
+double MAX (double a, double b)
+{
+  if (a > b)
+  {
+    return a;
+  }
+  return b;
+}
+double MIN (double a, double b)
+{
+  if (a < b)
+  {
+    return a;
+  }
+  return b;
+}
 // create the form and show it (somewhat older style)
 void FormLoad (HANDLE hInst)
 {
   // get the scale factors
+  BCX_GetDiaUnit = GetDialogBaseUnits();
+  BCX_cxBaseUnit = LOWORD(BCX_GetDiaUnit);
+  BCX_cyBaseUnit = HIWORD(BCX_GetDiaUnit);
   BCX_ScaleX = BCX_cxBaseUnit/4;
   BCX_ScaleY = BCX_cyBaseUnit/8;
   // now the form
@@ -40,6 +59,13 @@ LRESULT CALLBACK WndProc (HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
   static int yCenter;
   static int cxTotal;
   static int cyTotal;
+  static int cxRadius;
+  static int cyRadius;
+  static int cxMove;
+  static int cyMove;
+  static int xPixel;
+  static int yPixel;
+  static int nScale;
   
   while(1)
   {
@@ -60,6 +86,10 @@ LRESULT CALLBACK WndProc (HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
       nScale = (int)MIN(cxClient*xPixel,cyClient*yPixel)/16;
       cxRadius = nScale/xPixel;
       cyRadius = nScale/yPixel;
+      cxMove = (int)MAX(1,cxRadius/4);
+      cyMove = (int)MAX(1,cyRadius/4);
+      cxTotal = 2*(cxRadius+cxMove);
+      cyTotal = 2*(cyRadius+cyMove);
       if (hBitmap)
       {
         DeleteObject(hBitmap);
@@ -69,6 +99,10 @@ LRESULT CALLBACK WndProc (HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
       hBitmap = CreateCompatibleBitmap(hdc,cxTotal,cyTotal);
       ReleaseDC(hWnd,hdc);
       SelectObject(hdcMem,hBitmap);
+      Rectangle(hdcMem,-1,-1,cxTotal+1,cyTotal+1);
+      hBrush = CreateHatchBrush(HS_DIAGCROSS,0);
+      SelectObject(hdcMem,hBrush);
+      SetBkColor(hdcMem,RGB(101,0,100));
       Ellipse(hdcMem,cxMove,cyMove,cxTotal-cxMove,cyTotal-cyMove);
       DeleteDC(hdcMem);
       DeleteObject(hBrush);
@@ -90,6 +124,14 @@ LRESULT CALLBACK WndProc (HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
       DeleteDC(hdcMem);
       xCenter += cxMove;
       yCenter += cyMove;
+      if (xCenter+cxRadius>=cxClient||xCenter-cxRadius<=0)
+      {
+          cxMove = -cxMove;
+      }
+      if (yCenter+cyRadius >= cyClient || yCenter-cyRadius <= 0)
+      {
+          cyMove = -cyMove;
+      }
       return 0;
       break;
     }
@@ -117,6 +159,14 @@ int WINAPI WinMain (HINSTANCE hInst, HINSTANCE hPrev, LPSTR CmdLine, int CmdShow
   memset(&Wc,0,sizeof(Wc));
   static  MSG  Msg;
   memset(&Msg,0,sizeof(Msg));
+  Wc.style=CS_HREDRAW | CS_VREDRAW;
+  Wc.lpfnWndProc=WndProc;
+  Wc.cbClsExtra=0;
+  Wc.cbWndExtra=0;
+  Wc.hInstance=hInst;
+  Wc.hIcon=LoadIcon(NULL,IDI_WINLOGO);
+  Wc.hCursor=LoadCursor(NULL,IDC_ARROW);
+  Wc.hbrBackground=(HBRUSH)GetStockObject(WHITE_BRUSH);
   Wc.lpszMenuName=NULL;
   Wc.lpszClassName=AppName;
   RegisterClass(&Wc);
